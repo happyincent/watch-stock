@@ -1,0 +1,55 @@
+#!/bin/bash
+
+interval=5
+
+function usage() {
+    echo "Usage: $(basename "$0") [-n <secs>] <symbol>..." 1>&2
+    echo "Watch stock quotes using Google API." 1>&2
+    echo "" 1>&2
+    echo "Options:" 1>&2
+    echo "    -n <secs> seconds to wait between updates. (default secs: $interval)" 1>&2
+    echo "    <symbol>  stock symbol. (e.g., APPL, MSFT, 2330, 2412 or 加權指數)" 1>&2
+    exit 1
+}
+
+function getCodes() {
+    codes=$(
+        parallel -j 10 -k ' \
+            curl -s -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" -L "https://www.google.com/search?q={}%20股價" \
+            | grep -o "/m/[[:alnum:]_]*" \
+            | head -n 1 ' \
+        ::: "$@")
+    
+    echo $codes | xargs | tr ' ' '|'
+}
+
+function watchStock() {
+    codes=$(getCodes "$@")
+
+    watch -n $interval " \
+        curl -s \"https://www.google.com/async/finance_wholepage_price_updates?async=mids:$codes\" \
+        | tail -n +2 \
+        | jq -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl' \
+        | awk 'NR%3{printf \"%s\t\", \$0; next;}1' \
+        && echo '\nPress Ctrl-C to interrupt.' "
+}
+
+if [ $# -eq 0 ]; then
+    usage
+fi
+
+while getopts 'n:' arg; do
+    case $arg in
+    n) interval=$OPTARG ;;
+    *) usage ;;
+    esac
+done
+
+shift $(($OPTIND - 1))
+
+watchStock "$@"
+
+####################
+# curl -s -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" -L "https://www.google.com/search?q=TPE:2412" | grep -o "/m/[[:alnum:]_]*" | head -n 1
+# curl -s 'https://www.google.com/async/finance_wholepage_price_updates?async=mids:/m/0crq9|/m/0ckgfcv' | tail -n +2 | jq  -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl' | awk 'NR%3{printf "%s\t", $0; next;}1'
+####################
