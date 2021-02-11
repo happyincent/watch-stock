@@ -15,8 +15,8 @@ function usage() {
 function getCodes() {
     codes=$(
         parallel -j 10 -k ' \
-            curl -s -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" -L "https://www.google.com/search?q={}%20股價" \
-            | grep -o "/m/[[:alnum:]_]*" \
+            curl -s -L -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q={}+股價" \
+            | grep -o "/[mg]/[[:alnum:]_]*" \
             | head -n 1 ' \
         ::: "$@")
     
@@ -50,6 +50,6 @@ shift $(($OPTIND - 1))
 watchStock "$@"
 
 ####################
-# curl -s -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" -L "https://www.google.com/search?q=TPE:2412" | grep -o "/m/[[:alnum:]_]*" | head -n 1
+# curl -s -L -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q=TPE:2412" | grep -o "/[mg]/[0-9a-z_]*" | head -n 1
 # curl -s 'https://www.google.com/async/finance_wholepage_price_updates?async=mids:/m/0crq9|/m/0ckgfcv' | tail -n +2 | jq  -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl' | awk 'NR%3{printf "%s\t", $0; next;}1'
 ####################
