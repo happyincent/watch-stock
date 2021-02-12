@@ -15,7 +15,7 @@ function usage() {
 function getCodes() {
     codes=$(
         parallel -j 10 -k ' \
-            curl -s -L -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q={}+股價" \
+            curl -s -L -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q={}+stock+price" \
             | grep -o "/[mg]/[[:alnum:]_]*" \
             | head -n 1 ' \
         ::: "$@")
@@ -29,9 +29,13 @@ function watchStock() {
     watch -n $interval " \
         curl -s \"https://www.google.com/async/finance_wholepage_price_updates?async=mids:$codes\" \
         | tail -n +2 \
-        | jq -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl' \
-        | awk 'NR%3{printf \"%s\t\", \$0; next;}1' \
-        && echo '\nPress Ctrl-C to interrupt.' "
+        | jq -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name' \
+        | awk '(NR%4==0){printf(\"%50s\n\", sprintf(\"(%.48s)\", \$0)); next;} \
+               (NR%4==3){printf(\"%10.2f\t\", \$0); next;}
+                        {printf(\"%s\t\", \$0)}' \
+        | expand -t 4 | cat \
+        | awk -v t=\$COLUMNS '(length(\$0)>t){print substr(\$0, 1, t-4) \"...\"; next;}1' \
+        && printf '\nPress Ctrl-C to interrupt.\n' "
 }
 
 if [ $# -eq 0 ]; then
@@ -51,5 +55,5 @@ watchStock "$@"
 
 ####################
 # curl -s -L -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q=TPE:2412" | grep -o "/[mg]/[0-9a-z_]*" | head -n 1
-# curl -s 'https://www.google.com/async/finance_wholepage_price_updates?async=mids:/m/0crq9|/m/0ckgfcv' | tail -n +2 | jq  -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl' | awk 'NR%3{printf "%s\t", $0; next;}1'
+# curl -s 'https://www.google.com/async/finance_wholepage_price_updates?async=mids:/m/0crq9|/m/0ckgfcv' | tail -n +2 | jq  -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name ' | awk 'NR%4{printf("%s\t", $0); next;}1
 ####################
