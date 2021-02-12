@@ -30,10 +30,10 @@ function watchStock() {
         curl -s \"https://www.google.com/async/finance_wholepage_price_updates?async=mids:$codes\" \
         | tail -n +2 \
         | jq -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name' \
-        | awk '(NR%4==0){printf(\"%50s\n\", sprintf(\"(%.48s)\", \$0)); next;} \
-               (NR%4==3){printf(\"%10.2f\t\", \$0); next;}
-                        {printf(\"%s\t\", \$0)}' \
-        | expand -t 4 | cat \
+        | awk '(NR%4==0){printf(\"%s\n\", sprintf(\"(%s)\", \$0)); next;} \
+               (NR%4==3){printf(\"%9.2f    \", \$0); next;}
+                        {printf(\"%s|\", \$0)}' \
+        | column -t -s \| \
         | awk -v t=\$COLUMNS '(length(\$0)>t){print substr(\$0, 1, t-4) \"...\"; next;}1' \
         && printf '\nPress Ctrl-C to interrupt.\n' "
 }
@@ -55,5 +55,5 @@ watchStock "$@"
 
 ####################
 # curl -s -L -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q=TPE:2412" | grep -o "/[mg]/[0-9a-z_]*" | head -n 1
-# curl -s 'https://www.google.com/async/finance_wholepage_price_updates?async=mids:/m/0crq9|/m/0ckgfcv' | tail -n +2 | jq  -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name ' | awk 'NR%4{printf("%s\t", $0); next;}1
+# curl -s 'https://www.google.com/async/finance_wholepage_price_updates?async=mids:/m/04xjcr|/m/0crq9|/g/1ywbqvt_0|/m/0ckgfcv|/m/0cl2hvm|/m/07zln_9' | tail -n +2 | jq  -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name ' | awk 'NR%4{printf("%s\t", $0); next;}1'
 ####################
