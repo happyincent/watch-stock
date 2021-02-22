@@ -19,7 +19,7 @@ function getCodes() {
             | grep -o "/[mg]/[[:alnum:]_]*" \
             | head -n 1 ' \
         ::: "$@")
-    
+
     echo $codes | xargs | tr ' ' '|'
 }
 
@@ -31,7 +31,8 @@ function watchStock() {
         | tail -n +2 \
         | jq -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name' \
         | awk '(NR%4==0){printf(\"%s\n\", sprintf(\"(%s)\", \$0)); next;} \
-               (NR%4==3){printf(\"%9.2f    \", \$0); next;}
+               (NR%4==2){printf(\"%+9.2f|\", \$0); next;} \
+               (NR%4==3){printf(\"%9.2f    \", \$0); next;} \
                         {printf(\"%s|\", \$0)}' \
         | column -t -s \| \
         | awk -v t=\$COLUMNS '(length(\$0)>t){print substr(\$0, 1, t-4) \"...\"; next;}1' \
