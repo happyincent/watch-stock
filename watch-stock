@@ -25,11 +25,14 @@ function getCodes() {
 
 function watchStock() {
     codes=$(getCodes "$@")
+    echo "Start watching \"https://www.google.com/async/finance_wholepage_price_updates?async=mids:$codes\"" 1>&2
+    echo "" 1>&2
 
     watch -n $interval " \
         curl -s \"https://www.google.com/async/finance_wholepage_price_updates?async=mids:$codes\" \
         | tail -n +2 \
         | jq -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name' \
+        | tr '−' '-' \
         | awk '(NR%4==0){printf(\"%s\n\", sprintf(\"(%s)\", \$0)); next;} \
                (NR%4==2){printf(\"%+9.2f|\", \$0); next;} \
                (NR%4==3){printf(\"%9.2f    \", \$0); next;} \
@@ -45,8 +48,12 @@ fi
 
 while getopts 'n:' arg; do
     case $arg in
-    n) interval=$OPTARG ;;
-    *) usage ;;
+        n)
+            interval=$OPTARG
+            ;;
+        *)
+            usage
+            ;;
     esac
 done
 
@@ -55,6 +62,6 @@ shift $(($OPTIND - 1))
 watchStock "$@"
 
 ####################
-# curl -s -L -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q=TPE:2412" | grep -o "/[mg]/[0-9a-z_]*" | head -n 1
-# curl -s 'https://www.google.com/async/finance_wholepage_price_updates?async=mids:/m/04xjcr|/m/0crq9|/g/1ywbqvt_0|/m/0ckgfcv|/m/0cl2hvm|/m/07zln_9' | tail -n +2 | jq  -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name ' | awk 'NR%4{printf("%s\t", $0); next;}1'
+# curl -s -L -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q=2330+stock+price" | grep -o "/[mg]/[0-9a-z_]*" | head -n 1
+# curl -s 'https://www.google.com/async/finance_wholepage_price_updates?async=mids:/m/04xjcr|/m/0crq9|/g/1ywbqvt_0|/m/0ckgfcv|/m/0cl2hvm|/m/07zln_9' | tail -n +2 | jq  -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name '| tr '−' '-' | awk 'NR%4{printf("%s\t", $0); next;}1'
 ####################
