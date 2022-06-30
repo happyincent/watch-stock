@@ -15,7 +15,7 @@ function usage() {
 function getCodes() {
     codes=$(
         parallel -j 10 -k ' \
-            curl -s -L -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q={}+stock+price" \
+            curl -s -L -A "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q={}+stock+price" \
             | grep -o "x22/[mg]/[[:alnum:]_]*" \
             | head -n 1 \
             | sed "s/x22//" ' \
@@ -64,6 +64,6 @@ shift $(($OPTIND - 1))
 watchStock "$@"
 
 ####################
-# curl -s -L -A "Mozilla/5.0 AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q=2330+stock+price" | grep -o "x22/[mg]/[0-9a-z_]*" | head -n 1 | sed "s/x22//"
+# curl -s -L -A "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q=2330+stock+price" | grep -o "x22/[mg]/[0-9a-z_]*" | head -n 1 | sed "s/x22//"
 # curl -s 'https://www.google.com/async/finance_wholepage_price_updates?async=mids:/m/04xjcr|/m/0crq9|/g/1ywbqvt_0|/m/0ckgfcv|/m/0cl2hvm|/m/07zln_9' | tail -n +2 | jq  -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name '| awk '{gsub(/−/, "-");}1' |  awk '(/^[+\-0-9.,]+$/){gsub(/,/, "")};1' | awk 'NR%4{printf("%s\t", $0); next;}1'
 ####################
