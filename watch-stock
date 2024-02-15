@@ -1,31 +1,37 @@
 #!/bin/bash
 
 interval=5
+prefix=""
+postfix="stock price"
 
 function usage() {
-    echo "Usage: $(basename "$0") [-n <secs>] <symbol>..." 1>&2
+    echo "Usage: $(basename "$0") [-n <seconds>] [-p <prefix>] [-t <postfix>] <symbol>..." 1>&2
     echo "Watch stock quotes using Google API." 1>&2
     echo "" 1>&2
     echo "Options:" 1>&2
-    echo "    -n <secs> seconds to wait between updates. (default secs: $interval)" 1>&2
-    echo "    <symbol>  stock symbol. (e.g., APPL, MSFT, 2330, 2412 or 加權指數)" 1>&2
+    echo "    -n <seconds> Specify update interval. (default: $interval)" 1>&2
+    echo "    -p <prefix> default: \"$prefix\" (e.g., TPE, TYO, HKG or NASDAQ)" 1>&2
+    echo "    -t <postfix> default: \"$postfix\"" 1>&2
+    echo "    <symbol>  stock symbol. (e.g., AAPL, MSFT, 2330, 2412, 0050 or IX0001)" 1>&2
     exit 1
 }
 
 function getCodes() {
     codes=$(
-        parallel -j 10 -k ' \
-            curl -s -L -A "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q={}+stock+price" \
-            | grep -o "x22/[mg]/[[:alnum:]_]*" \
-            | head -n 1 \
-            | sed "s/x22//" ' \
-        ::: "$@")
+        parallel -j 10 -k " \
+            curl -s -L -A \"Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/87\" \"https://www.google.com/search?q=${prefix// /+}{}+${postfix// /+}\" \
+            | grep -o '/[mg]/[[:alnum:]_]*' \
+            | head -n1 " \
+            ::: "$@"
+    )
 
     echo $codes | xargs | tr ' ' '|'
 }
 
 function watchStock() {
+    echo "Start querying \"https://www.google.com/search?q=${prefix// /+}{}+${postfix// /+}\""
     codes=$(getCodes "$@")
+
     echo "Start watching \"https://www.google.com/async/finance_wholepage_price_updates?async=mids:$codes\"" 1>&2
     echo "" 1>&2
 
@@ -34,7 +40,7 @@ function watchStock() {
         | tail -n +2 \
         | jq -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name' \
         | awk '{gsub(/−/, \"-\");}1' \
-        | awk '(/^[+\-0-9.,]+$/){gsub(/,/, \"\")};1'\
+        | awk '(/^[+\-0-9.,]+$/){gsub(/,/, \"\")};1' \
         | awk '(NR%4==0){printf(\"%s\n\", sprintf(\"(%s)\", \$0)); next;} \
                (NR%4==2){printf(\"%+9.2f|\", \$0); next;} \
                (NR%4==3){printf(\"%9.2f    \", \$0); next;} \
@@ -42,20 +48,29 @@ function watchStock() {
         | column -t -s \| \
         | awk -v t=\$COLUMNS '(length(\$0)>t){print substr(\$0, 1, t-4) \"...\"; next;}1' \
         && printf '\nPress Ctrl-C to interrupt.\n' "
+
+    curl -s "https://www.google.com/async/finance_wholepage_price_updates?async=mids:$codes" | tail -n +2 | jq -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name ' | awk '{gsub(/−/, "-");}1' | awk '(/^[+\-0-9.,]+$/){gsub(/,/, "")};1' | awk 'NR%4{printf("%s\t", $0); next;}1' 1>&2
+    echo "" 1>&2
 }
 
 if [ $# -eq 0 ]; then
     usage
 fi
 
-while getopts 'n:' arg; do
+while getopts 'n:p:t:' arg; do
     case $arg in
-        n)
-            interval=$OPTARG
-            ;;
-        *)
-            usage
-            ;;
+    n)
+        interval=$OPTARG
+        ;;
+    p)
+        prefix="$OPTARG "
+        ;;
+    t)
+        postfix=$OPTARG
+        ;;
+    *)
+        usage
+        ;;
     esac
 done
 
@@ -64,6 +79,6 @@ shift $(($OPTIND - 1))
 watchStock "$@"
 
 ####################
-# curl -s -L -A "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q=2330+stock+price" | grep -o "x22/[mg]/[0-9a-z_]*" | head -n 1 | sed "s/x22//"
-# curl -s 'https://www.google.com/async/finance_wholepage_price_updates?async=mids:/m/04xjcr|/m/0crq9|/g/1ywbqvt_0|/m/0ckgfcv|/m/0cl2hvm|/m/07zln_9' | tail -n +2 | jq  -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name '| awk '{gsub(/−/, "-");}1' |  awk '(/^[+\-0-9.,]+$/){gsub(/,/, "")};1' | awk 'NR%4{printf("%s\t", $0); next;}1'
+# curl -s -L -A "Mozilla/5.0 (Macintosh) AppleWebKit/537.36 Chrome/87" "https://www.google.com/search?q=TPE%3A+2330+stock+price" | grep -o "/[mg]/[0-9a-z_]*" | sort | uniq -c | sort -gr | head -n1 | grep -o "/[mg]/[[:alnum:]_]*"
+# curl -s 'https://www.google.com/async/finance_wholepage_price_updates?async=mids:/g/11j48zf1ts|/m/04xjcr|/m/0crq9|/g/1ywbqvt_0|/m/0ckgfcv|/m/0cl2hvm|/m/07zln_9' | tail -n +2 | jq -r '.PriceUpdate.entities[] | .financial_entity.common_entity_data | .symbol, .value_change, .last_value_dbl, .name ' | awk '{gsub(/−/, "-");}1' | awk '(/^[+\-0-9.,]+$/){gsub(/,/, "")};1' | awk 'NR%4{printf("%s\t", $0); next;}1'
 ####################
